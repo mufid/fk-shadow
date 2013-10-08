@@ -31,6 +31,7 @@ public class RobotBrain
     private Navigator navigator;
     private TacticalAdvisor tacticalAdvisor;
     private boolean iWon;
+    private static boolean forwardRun = true;
 
     public static final synchronized RobotBrain getInstance( UnderDog r )
     {
@@ -172,7 +173,7 @@ public class RobotBrain
         this.navigator.onPaint( g );
     }
 
-    public void findNextNearestMove() {
+    public synchronized void findNextNearestMove() {
     	Point2D target = null;// = null;
     	// DO NOT MOVE NEAR WALL. DO RANDOM POSITION IF NEAR WALL!
     	boolean nearWall = this.nearWall();
@@ -199,16 +200,20 @@ public class RobotBrain
     	double RANDOM_MAX = 2.3f;
     	double RADIUS_RANDOM = 20.f;
     	double MGAX_RADIUS = 140.f + Math.random() * RADIUS_RANDOM;
-    	angle_rad += (Math.random() * RANDOM_MAX * 2) - RANDOM_MAX;
+    	//angle_rad += (Math.random() * RANDOM_MAX * 2) - RANDOM_MAX;
+    	angle_rad += Math.random() * RANDOM_MAX;
+    	if (forwardRun) angle_rad *= -1;
+    	//angle_rad += Math.random() < 0.5 ? RANDOM_MAX : -RANDOM_MAX;
     	
     	// TODO: FLAW WARNING: MAY BE INFINITY!
     	Point nextPoint = new Point((int) (MGAX_RADIUS * Math.cos(angle_rad) + currentPos.getX()), (int) (MGAX_RADIUS * Math.sin(angle_rad) + currentPos.getY()));
     	System.out.println("FIXED: " + nextPoint.toString());
     	this.forceToPosition(nearWall ? target : nextPoint);
+    	forwardRun = !forwardRun;
     }
 
 	private boolean nearWall() {
-		int SENSITIVITY = 120;
+		int SENSITIVITY = 50;
 		System.out.println("WARNING: NEAR WALL");
 		boolean xNearWall = this.robot.getX() < SENSITIVITY || this.robot.getX() > 800 - SENSITIVITY;
 		boolean yNearWall = this.robot.getY() < SENSITIVITY || this.robot.getY() > 600 - SENSITIVITY;

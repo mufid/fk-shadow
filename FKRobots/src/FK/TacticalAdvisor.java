@@ -8,6 +8,7 @@ import java.awt.geom.Point2D;
 import java.text.AttributedString;
 import java.util.logging.Level;
 
+import FK.Internal.Etc;
 import FK.logging.MyLogger;
 import robocode.Bullet;
 import robocode.BulletMissedEvent;
@@ -39,7 +40,7 @@ public class TacticalAdvisor
     private Point2D lastTargetedLocation;
     private double lastAngleDiff;
     double CURRENT_RADAR_TURN_DIRECTION = 1.0D;
-    
+    final double ALLY_INLINE_SENSITIVITY = 30.f;
     private final double TARGET_RADIUS = 200.F;
 
     public TacticalAdvisor( UnderDog r )
@@ -135,25 +136,35 @@ public class TacticalAdvisor
 
     private void handleAimingAndFiring( ScannedRobotEvent event )
     {
-        String enemyName = event.getName();
-        Enemy closestEnemy = EnemyManager.getInstance().getClosestEnemy();
-
-        if ( ( enemyName == null ) || ( closestEnemy == null ) || ( !enemyName.equals( closestEnemy.getName() ) ) )
-        {
+        // Prevent inline teammate fire
+        AllyManager am = AllyManager.getInstance();
+        EnemyManager em = EnemyManager.getInstance();
+        Point mePosition = new Point((int) this.robot.getX(), (int) this.robot.getY());
+        Point2D enemyPosition = em.getEnemy(event.getName()).getLocation();
+        if (am.existInlineAllies(mePosition, Etc.toPoint(enemyPosition), ALLY_INLINE_SENSITIVITY)) {
+            this.robot.setTurnLeft(Math.random() * 45+45);
+            this.robot.setAhead(50.f);
+            //this.robot.execute();
+            System.out.println("ALLY: " + event.getName());
             return;
         }
+        
+        String enemyName = event.getName();
         double distance = event.getDistance();
         double otherRobotsHeading = event.getHeading();
         double enemyVelocity = event.getVelocity();
         Enemy enemy = EnemyManager.getInstance().getEnemy( enemyName );
-        double power = 0.1D;
+        //double power = 0.1D;
+        double power = 0.5D;
         power = distance < 450.0D ? 0.3D : power;
         power = distance < 350.0D ? 0.5D : power;
         power = distance < 250.0D ? 1.0D : power;
         power = distance < 200.0D ? 2.0D : power;
-        power = distance < 150.0D ? 1.0D : power;
+        //power = distance < 150.0D ? 1.0D : power;
+        power = distance < 150.0D ? 2.3D : power;
         // Adjust cintaaa
-        power += 1.5D;
+        power += 1.1D;
+        //power = 3.0D;
         double angleDiff = determineNewGunHeading( distance, enemyVelocity, power, otherRobotsHeading, enemy.getLocation() );
         this.robot.setTurnGunRight( angleDiff );
         logger.log( Level.FINE, "angleDiff: " + angleDiff );
@@ -210,6 +221,10 @@ public class TacticalAdvisor
 
     public void processEvent( HitRobotEvent event )
     {
+        // Preventing melee from teammate
+        if (this.robot.isTeammate(event.getName())) {
+            return;
+        }
         double turnGunAmt = Utils.normalRelativeAngle( event.getBearing() + this.robot.getHeading() - this.robot.getGunHeading() );
         this.robot.setTurnGunRight( turnGunAmt );
         this.robot.setFire( 3.0D );
